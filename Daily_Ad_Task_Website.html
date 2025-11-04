@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Ad Task - Monetag Earning</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #000, #111);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #00ff99;
+      margin-top: 10px;
+    }
+    .card {
+      background: #141414;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,255,153,0.3);
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 400px;
+    }
+    button {
+      background: #00ff99;
+      color: #000;
+      border: none;
+      padding: 12px 25px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-top: 10px;
+    }
+    button:hover { background: #00cc77; }
+    button.locked {
+      background: gray !important;
+      color: #222;
+      cursor: not-allowed;
+    }
+    .balance {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+    .log {
+      background: #0a0a0a;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      text-align: left;
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>💰 Daily Ad Tasks 💰</h1>
+  <p>প্রতিদিন ২০টি অ্যাড দেখে ৫০ কয়েন করে আয় করুন! <br>সব অ্যাড শেষ হলে ২ ঘণ্টা পর আবার শুরু হবে।</p>
+
+  <div class="card">
+    <h2>🔥 Daily Ad Section</h2>
+    <p>Task Completed: <span id="tasksDone">0</span>/20</p>
+    <div class="balance">Your Balance: <span id="balance">0</span> Coins</div>
+    <button id="adBtn" onclick="startDailyAds()">🎬 Daily Ad শুরু করুন</button>
+    <div id="timer" style="margin-top:8px;color:#9af;">Next available in: <span id="countdown">--:--:--</span></div>
+    <div class="log" id="logBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>💵 Withdraw</h2>
+    <p>Minimum: 10,000 Coins</p>
+    <button onclick="withdraw()">Withdraw via Binance</button>
+  </div>
+
+  <script>
+    const AD_SRC = "//libtl.com/sdk.js";
+    const AD_ZONE = "10139118";
+    const AD_SDK = "show_10139118";
+
+    const PER_AD = 50;
+    const MAX_TASK = 20;
+    const LOCK_TIME = 2 * 60 * 60 * 1000;
+
+    let balance = parseInt(localStorage.getItem("balance")) || 0;
+    let tasksDone = parseInt(localStorage.getItem("tasksDone")) || 0;
+    let nextTime = parseInt(localStorage.getItem("nextTime")) || 0;
+
+    const balEl = document.getElementById("balance");
+    const doneEl = document.getElementById("tasksDone");
+    const btnEl = document.getElementById("adBtn");
+    const cdEl = document.getElementById("countdown");
+    const logEl = document.getElementById("logBox");
+
+    updateUI();
+    setInterval(updateUI, 1000);
+
+    function updateUI() {
+      balEl.textContent = balance;
+      doneEl.textContent = tasksDone;
+      const now = Date.now();
+      if (nextTime > now) {
+        const left = nextTime - now;
+        const h = String(Math.floor(left / 3600000)).padStart(2,"0");
+        const m = String(Math.floor(left / 60000) % 60).padStart(2,"0");
+        const s = String(Math.floor(left / 1000) % 60).padStart(2,"0");
+        cdEl.textContent = `${h}:${m}:${s}`;
+        btnEl.classList.add("locked");
+        btnEl.disabled = true;
+        btnEl.innerText = "Locked ⏳";
+      } else {
+        cdEl.textContent = "--:--:--";
+        btnEl.classList.remove("locked");
+        btnEl.disabled = false;
+        btnEl.innerText = "🎬 Daily Ad শুরু করুন";
+      }
+    }
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      const p = document.createElement("div");
+      p.textContent = `[${time}] ${msg}`;
+      logEl.prepend(p);
+    }
+
+    async function startDailyAds() {
+      const now = Date.now();
+      if (nextTime > now) {
+        alert("⏳ ২ ঘণ্টা পর আবার চেষ্টা করুন!");
+        return;
+      }
+      if (tasksDone >= MAX_TASK) {
+        alert("🎯 আজকের ২০টি অ্যাড সম্পন্ন করেছেন!");
+        nextTime = now + LOCK_TIME;
+        localStorage.setItem("nextTime", nextTime);
+        updateUI();
+        return;
+      }
+      btnEl.disabled = true;
+      btnEl.innerText = "Ad চলছে...";
+      log("🎬 অ্যাড শুরু হচ্ছে...");
+      for (let i = tasksDone + 1; i <= MAX_TASK; i++) {
+        await loadMonetagAd(i);
+        balance += PER_AD;
+        tasksDone++;
+        localStorage.setItem("balance", balance);
+        localStorage.setItem("tasksDone", tasksDone);
+        log(`✅ Ad ${tasksDone} সম্পন্ন হয়েছে (+${PER_AD} coins)`);
+        updateUI();
+        await delay(2000);
+        if (tasksDone >= MAX_TASK) break;
+      }
+      if (tasksDone >= MAX_TASK) {
+        nextTime = Date.now() + LOCK_TIME;
+        localStorage.setItem("nextTime", nextTime);
+        log("🎯 ২০টি অ্যাড শেষ! ২ ঘণ্টা পর আবার চালু হবে।");
+      }
+      btnEl.disabled = false;
+      btnEl.innerText = "🎬 Daily Ad শুরু করুন";
+      updateUI();
+    }
+
+    function loadMonetagAd(n) {
+      return new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = AD_SRC;
+        script.dataset.zone = AD_ZONE;
+        script.dataset.sdk = AD_SDK;
+        script.onload = () => resolve();
+        script.onerror = () => resolve();
+        document.body.appendChild(script);
+      });
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function withdraw() {
+      if (balance < 10000) {
+        alert("⚠️ 10,000 কয়েন প্রয়োজন উইথড্রের জন্য!");
+        return;
+      }
+      const addr = prompt("Binance (TRC20) Address লিখুন:");
+      if (!addr) return;
+      alert(`✅ Withdraw Successful!\n\nAddress: ${addr}\nAmount: ${balance} coins`);
+      log(`💸 Withdraw: ${balance} coins sent to ${addr}`);
+      balance = 0;
+      tasksDone = 0;
+      localStorage.setItem("balance", balance);
+      localStorage.setItem("tasksDone", tasksDone);
+      updateUI();
+    }
+  </script>
+
+</body>
+</html>
